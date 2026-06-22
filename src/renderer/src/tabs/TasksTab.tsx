@@ -78,7 +78,8 @@ export default function TasksTab({ projectId, projectName, onToast }: Props) {
 
   // Full payload on every write — remote store replaces the JSON blob, so we must
   // resend all fields and preserve acceptance/assigned_by unless re-delegated.
-  const writeTask = async (base: Row, patch: Row): Promise<void> => {
+  // Returns the saved task's id (needed for allocation linking).
+  const writeTask = async (base: Row, patch: Row): Promise<number | undefined> => {
     const payload: Row = {
       project_id: projectId,
       name: base.name ?? '',
@@ -89,8 +90,13 @@ export default function TasksTab({ projectId, projectName, onToast }: Props) {
       assigned_by: base.assigned_by ?? '',
       ...patch
     }
-    if (base.id != null) await window.api.items.update('task', { id: base.id, ...payload })
-    else await window.api.items.create('task', payload)
+    if (base.id != null) {
+      await window.api.items.update('task', { id: base.id, ...payload })
+      return base.id as number
+    } else {
+      const res = await window.api.items.create('task', payload)
+      return res.ok ? (res.data as { id: number } | undefined)?.id : undefined
+    }
   }
 
   const handleSubmit = async (data: Record<string, string>): Promise<void> => {
@@ -103,7 +109,21 @@ export default function TasksTab({ projectId, projectName, onToast }: Props) {
     const acceptance = reDelegated ? (newAssignee ? 'Pending' : '') : (prev?.acceptance ?? '')
     const assigned_by = reDelegated ? (currentMember?.id ?? '') : (prev?.assigned_by ?? '')
 
-    await writeTask(prev ?? {}, { ...data, acceptance, assigned_by })
+    const savedId = await writeTask(prev ?? {}, { ...data, acceptance, assigned_by })
+
+    // Mirror task assignment into Daily Work Allocation so the two stay in sync.
+    if (reDelegated && newAssignee && savedId != null) {
+      const allocDate = data.deadline || new Date().toISOString().slice(0, 10)
+      await window.api.items.create('allocation', {
+        project_id: projectId,
+        member_id: Number(newAssignee),
+        task_id: savedId,
+        date: allocDate,
+        hours: '',
+        note: ''
+      })
+    }
+
     onToast(isNew ? 'Task added' : 'Task updated')
     setModal(null)
     load()
