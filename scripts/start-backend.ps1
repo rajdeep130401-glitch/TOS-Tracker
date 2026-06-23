@@ -18,7 +18,7 @@ if (-not (Get-NetTCPConnection -State Listen -LocalPort 4000 -ErrorAction Silent
 # If a static domain is set in ngrok config, it will be used automatically.
 $ngrokRunning = Get-Process -Name 'ngrok' -ErrorAction SilentlyContinue
 if (-not $ngrokRunning) {
-    Start-Process -FilePath 'ngrok' -ArgumentList 'http 4000' -WindowStyle Hidden
+    Start-Process -FilePath 'ngrok' -ArgumentList 'http 4000 --domain=unread-staleness-cesspool.ngrok-free.dev' -WindowStyle Hidden
     Start-Sleep -Seconds 6
     # Save current URL for easy reference
     try {
