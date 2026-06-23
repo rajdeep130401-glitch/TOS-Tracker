@@ -17,6 +17,7 @@ import BestFitModal from './components/BestFitModal'
 import DisciplineModal from './components/DisciplineModal'
 import AllocationModal from './components/AllocationModal'
 import StaffingModal from './components/StaffingModal'
+import ChangePasswordModal from './components/ChangePasswordModal'
 import CommandPalette, { PaletteTarget } from './components/CommandPalette'
 import ExecDashboard from './components/ExecDashboard'
 import Icon from './components/Icon'
@@ -59,6 +60,7 @@ function Shell() {
   const [showStaffing, setShowStaffing] = useState(false)
   const [showExec, setShowExec] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showChangePw, setShowChangePw] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [gotoTab, setGotoTab] = useState<{ tab: string; n: number }>({ tab: 'Dashboard', n: 0 })
@@ -217,6 +219,7 @@ function Shell() {
               <span>Signed in as</span>
               <strong>{currentMember?.name ?? authUser?.name}</strong>
               <span className="role-chip">{authUser?.role}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowChangePw(true)} title="Change password"><Icon name="settings" size={15} /> Change Password</button>
               <button className="btn btn-secondary btn-sm" onClick={logout} title="Sign out"><Icon name="logout" size={15} /> Logout</button>
             </div>
           ) : (
@@ -384,6 +387,7 @@ function Shell() {
       {showDisc && <DisciplineModal projects={visibleProjects} onClose={() => setShowDisc(false)} onSelect={setSelectedId} />}
       {showAllocation && <AllocationModal projects={visibleProjects} onClose={() => setShowAllocation(false)} onToast={showToast} />}
       {showStaffing && <StaffingModal projects={visibleProjects} onClose={() => { setShowStaffing(false); loadAssignments() }} onToast={showToast} />}
+      {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} onToast={showToast} />}
       {showExec && <ExecDashboard projects={visibleProjects} onClose={() => setShowExec(false)} onSelect={setSelectedId} onToast={showToast} />}
       {paletteOpen && <CommandPalette projects={visibleProjects} members={members} onClose={() => setPaletteOpen(false)} onNavigate={handlePalette} />}
       {showOrg && <OrgChartModal onClose={() => setShowOrg(false)} />}

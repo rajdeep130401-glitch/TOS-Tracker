@@ -4,7 +4,7 @@ import FormModal, { FieldDef } from '../components/FormModal'
 import Icon from '../components/Icon'
 import { Member } from '../types'
 import { useApp } from '../context/AppContext'
-import { roleRank, RANK_LEAD } from '../roles'
+import { roleRank } from '../roles'
 
 interface Props {
   projectId: number
@@ -51,15 +51,16 @@ export default function TasksTab({ projectId, projectName, onToast }: Props) {
     return m
   }, [rows])
 
-  // Who the current actor may assign to (role-tier rules):
-  // Manager/Company Admin → anyone; Team Lead → Employees only; Employee → no one.
+  // Who the current actor may assign to:
+  // Manager/Company Admin → anyone; Team Lead → Project Lead + Employee; Project Lead → Employee only.
+  const myRank = roleRank(currentMember?.role)
   const assignable = useMemo(() => {
     return members.filter((mb) => {
       if (isManager) return true
-      if (isAdmin) return roleRank(mb.role) < RANK_LEAD
+      if (isAdmin) return roleRank(mb.role) < myRank
       return false
     })
-  }, [members, isManager, isAdmin])
+  }, [members, isManager, isAdmin, myRank])
 
   const assignOptions = useMemo(
     () => [

@@ -38,9 +38,10 @@ declare global {
 // Legacy 'Admin' = Team Lead, 'Member' = Employee.
 const ROLE_RANK: Record<string, number> = {
   Employee: 1, Member: 1,
-  'Team Lead': 2, Admin: 2,
-  Manager: 3,
-  'Company Admin': 4
+  'Project Lead': 2,
+  'Team Lead': 3, Admin: 3,
+  Manager: 4,
+  'Company Admin': 5
 }
 export function rankOf(role: string): number {
   return ROLE_RANK[role] ?? 0
@@ -112,7 +113,7 @@ export function buildAuthRouter(): Router {
       }
       const user = await prisma.user.findUnique({ where: { id: req.user!.uid } })
       if (!user || !(await bcrypt.compare(current, user.passwordHash))) {
-        res.status(401).json({ ok: false, error: 'Current password is incorrect' })
+        res.status(400).json({ ok: false, error: 'Current password is incorrect' })
         return
       }
       await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(next, 10), mustReset: false } })

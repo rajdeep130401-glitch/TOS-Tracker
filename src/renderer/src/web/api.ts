@@ -14,17 +14,19 @@
 type Res<T> = Promise<{ ok: boolean; data?: T; error?: string }>
 type Row = Record<string, unknown>
 
+// Empty API_BASE = same-origin: the app calls /auth and /api on its own origin
+// and Vercel rewrites proxy those to the backend server-side (see vercel.json).
+// This avoids cross-origin CORS entirely (and the ngrok free-tier interstitial,
+// which strips CORS headers from fresh browsers' preflights).
 const API_BASE = (((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL) || '').replace(/\/$/, '')
 const TOKEN_KEY = 'tos_token'
 
 const getToken = (): string => { try { return localStorage.getItem(TOKEN_KEY) || '' } catch { return '' } }
 const setToken = (t: string): void => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY) } catch { /* ignore */ } }
 const authHeader = (): Record<string, string> => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {} }
-const NO_BACKEND = 'Backend not configured yet (set VITE_API_BASE_URL and redeploy).'
 
 // Core request → returns the server's {ok,data,error} envelope (matches IPC).
 async function call<T>(method: string, path: string, body?: unknown): Res<T> {
-  if (!API_BASE) return { ok: false, error: NO_BACKEND }
   try {
     const res = await fetch(API_BASE + path, {
       method,
@@ -92,7 +94,6 @@ function pickFile(accept: string, multiple: boolean): Promise<File[]> {
 
 // ── Attachments (raw bytes via authed fetch) ──────────────────────────────
 async function rawBlob(storedPath: string): Promise<Blob | null> {
-  if (!API_BASE) return null
   const res = await fetch(`${API_BASE}/api/attachments/raw?path=${q(storedPath)}`, { headers: authHeader() })
   if (!res.ok) return null
   return res.blob()
@@ -222,7 +223,6 @@ function buildApi(): unknown {
       get: (entityType: string, entityId: number) => call('GET', `/api/attachments?entityType=${q(entityType)}&entityId=${q(entityId)}`),
       getMany: (entityType: string, ids: number[]) => call('GET', `/api/attachments/many?entityType=${q(entityType)}&ids=${q(ids.join(','))}`),
       add: async (entityType: string, entityId: number, multi = true) => {
-        if (!API_BASE) return { ok: false, error: NO_BACKEND }
         const files = await pickFile('*/*', multi)
         if (!files.length) return { ok: true, data: [] }
         const out: Row[] = []
@@ -310,7 +310,8 @@ function buildApi(): unknown {
       state: async () => {
         if (!getToken()) return { ok: true, data: { mode: 'remote', user: null } }
         const me = await call<{ user: unknown }>('GET', '/auth/me')
-        if (!me.ok || !me.data) { setToken(''); return { ok: true, data: { mode: 'remote', user: null } } }
+        // call() already clears token on 401; don't wipe a valid token for transient network errors
+        if (!me.ok || !me.data) { return { ok: true, data: { mode: 'remote', user: null } } }
         return { ok: true, data: { mode: 'remote', user: me.data.user } }
       },
       login: async (email: string, password: string) => {
