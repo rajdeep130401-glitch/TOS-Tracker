@@ -28,7 +28,7 @@ async function call<T>(method: string, path: string, body?: unknown): Res<T> {
   try {
     const res = await fetch(API_BASE + path, {
       method,
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...authHeader() },
       body: body !== undefined ? JSON.stringify(body) : undefined
     })
     const json = (await res.json().catch(() => null)) as { ok: boolean; data?: T; error?: string } | null
