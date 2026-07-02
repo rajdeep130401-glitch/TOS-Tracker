@@ -36,3 +36,7 @@ Production_Architecture_EMAIL.xlsx
 server/src/seed-members.ts
 server/src/gen-passwords.ts
 server/src/list-creds.ts
+server/src/export-creds.ts
+server/src/add-member.ts
+
+.vercel

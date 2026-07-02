@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon'
 import { useApp } from '../context/AppContext'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 interface Props {
   onClose: () => void
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function ChangePasswordModal({ onClose, onToast }: Props) {
+  useEscapeKey(onClose)
   const { changePassword } = useApp()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -28,7 +30,7 @@ export default function ChangePasswordModal({ onClose, onToast }: Props) {
   }
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 420 }}>
         <div className="modal-header">
           <h3><Icon name="settings" size={18} /> Change Password</h3>

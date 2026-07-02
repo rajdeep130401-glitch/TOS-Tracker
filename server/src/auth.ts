@@ -51,18 +51,40 @@ function sign(u: AuthUser): string {
   return jwt.sign(u, env.jwtSecret, { expiresIn: env.jwtExpiresIn as jwt.SignOptions['expiresIn'] })
 }
 
-export function authRequired(req: Request, res: Response, next: NextFunction): void {
+export async function authRequired(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.header('authorization') ?? ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   if (!token) {
     res.status(401).json({ ok: false, error: 'Not authenticated' })
     return
   }
+  let decoded: AuthUser
   try {
-    req.user = jwt.verify(token, env.jwtSecret) as AuthUser
-    next()
+    decoded = jwt.verify(token, env.jwtSecret) as AuthUser
   } catch {
     res.status(401).json({ ok: false, error: 'Session expired — please sign in again' })
+    return
+  }
+  // Re-read identity + role from the DB on every request so a role/discipline
+  // change (made in the Members list) takes effect on the next page load — no
+  // re-login required. The token is only used to identify the user, not to
+  // carry their (possibly stale) role.
+  try {
+    const user = await prisma.user.findUnique({ where: { id: decoded.uid }, include: { member: true } })
+    if (!user) {
+      res.status(401).json({ ok: false, error: 'Account no longer exists' })
+      return
+    }
+    req.user = {
+      uid: user.id,
+      mid: user.memberId,
+      role: user.member?.role ?? user.role,
+      name: user.member?.name ?? decoded.name ?? decoded.email,
+      email: decoded.email
+    }
+    next()
+  } catch {
+    res.status(500).json({ ok: false, error: 'Authentication lookup failed' })
   }
 }
 
@@ -89,8 +111,10 @@ export function buildAuthRouter(): Router {
         res.status(401).json({ ok: false, error: 'Invalid email or password' })
         return
       }
+      // The member record's role is the source of truth (managed in the members
+      // UI). user.role can lag behind, so authorize by the member's role.
       const authUser: AuthUser = {
-        uid: user.id, mid: user.memberId, role: user.role,
+        uid: user.id, mid: user.memberId, role: user.member?.role ?? user.role,
         name: user.member?.name ?? email, email
       }
       res.json({ ok: true, data: { token: sign(authUser), user: authUser, mustReset: user.mustReset } })
