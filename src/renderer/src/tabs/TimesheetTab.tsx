@@ -293,7 +293,7 @@ export default function TimesheetTab({ projectId, projectName, onToast, quotedHo
   const toolbar = (
     <>
       <button className="btn btn-primary btn-sm" onClick={() => setLogOpen(true)} title="Log IT issue / Discussion hours (count immediately) or catch-up task time (needs approval)"><Icon name="plus" size={14} /> Log time</button>
-      <select className="ts-filter" value={filterMember} onChange={(e) => setFilterMember(e.target.value)}>
+      <select className="filter-select" aria-label="Filter by member" value={filterMember} onChange={(e) => setFilterMember(e.target.value)}>
         <option value="">All members</option>
         {summaryMembers.map((m) => <option key={m.id} value={String(m.id)}>{m.name}</option>)}
       </select>

@@ -76,7 +76,7 @@ export default function ProjectTree({ projects, statusMap, selectedId, onSelect,
           return (
             <div className="tree-group" key={name}>
               <div className="tree-group-head" onClick={() => toggle(name)}>
-                <span className={`tree-chevron${isOpen ? ' open' : ''}`}>▸</span>
+                <span className={`tree-chevron${isOpen ? ' open' : ''}`}><Icon name="chevronRight" size={12} /></span>
                 {groupBy === 'discipline' && name !== UNSET && <span className="proj-icon"><DisciplineIcon discipline={name} size={15} /></span>}
                 {groupBy !== 'discipline' && <span className="proj-icon"><Icon name="folder" size={15} /></span>}
                 <span className="tree-group-name" title={name}>{name}</span>

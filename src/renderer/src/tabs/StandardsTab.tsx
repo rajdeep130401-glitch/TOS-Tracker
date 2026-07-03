@@ -45,7 +45,7 @@ export default function StandardsTab({ projectId, projectName, onToast }: Props)
         v ? (
           <div className="path-cell">
             <span className="path-text" title={String(v)}>{String(v)}</span>
-            <button className="btn-icon" title="Open" onClick={(e) => { e.stopPropagation(); openPath(String(v)) }}>↗</button>
+            <button className="btn-icon" title="Open" onClick={(e) => { e.stopPropagation(); openPath(String(v)) }}><Icon name="externalLink" size={15} /></button>
             <button className="btn-icon" title="Show in Explorer" onClick={(e) => { e.stopPropagation(); reveal(String(v)) }}><Icon name="folder" size={15} /></button>
           </div>
         ) : (
@@ -70,7 +70,7 @@ export default function StandardsTab({ projectId, projectName, onToast }: Props)
 
   const importBtn = isLead ? (
     <button className="btn btn-secondary btn-sm" onClick={handleImport} title="Import standards from a CSV file">
-      ⬆ Import standards
+      <Icon name="upload" size={14} /> Import standards
     </button>
   ) : null
 

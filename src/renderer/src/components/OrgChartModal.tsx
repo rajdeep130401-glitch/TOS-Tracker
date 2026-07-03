@@ -18,7 +18,7 @@ function TreeNode({ node, depth }: { node: OrgNode; depth: number }): React.JSX.
       <div className={`org-node${node.group ? ' org-group' : ''}`}>
         {hasKids ? (
           <button className="org-toggle" onClick={() => setOpen((o) => !o)} title={open ? 'Collapse' : 'Expand'}>
-            {open ? '▾' : '▸'}
+            <Icon name={open ? 'chevronDown' : 'chevronRight'} size={12} />
           </button>
         ) : (
           <span className="org-toggle org-toggle-leaf">•</span>

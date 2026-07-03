@@ -47,6 +47,7 @@ export default function RFITab({ projectId, projectName, onToast }: Props) {
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState<Row | null>(null)
+  const [confirmRemovePoint, setConfirmRemovePoint] = useState<number | null>(null)
   const toggleSel = (id: number): void => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const load = useCallback(async () => {
@@ -205,7 +206,7 @@ export default function RFITab({ projectId, projectName, onToast }: Props) {
                   <textarea rows={2} placeholder="Point / question…" value={p.text} onChange={(e) => setPoint(i, { text: e.target.value })} />
                   <div className="rfi-point-img">
                     <input type="file" accept="image/*" onChange={(e) => onPointImage(i, e.target.files?.[0])} />
-                    <span className="attach-hint">⚠ image under 1 MB only</span>
+                    <span className="attach-hint"><Icon name="alertTriangle" size={13} /> image under 1 MB only</span>
                     {p.image && (
                       <div className="rfi-thumb">
                         <img src={p.image} alt="" />
@@ -215,12 +216,20 @@ export default function RFITab({ projectId, projectName, onToast }: Props) {
                   </div>
                   <textarea rows={2} className={answered(p) ? 'rfi-answered' : ''} placeholder="Response (leave blank = Open)…" value={p.response ?? ''} onChange={(e) => setPoint(i, { response: e.target.value })} />
                 </div>
-                <button className="btn-icon danger" title="Remove point" onClick={() => removePoint(i)}><Icon name="trash" size={16} /></button>
+                <button className="btn-icon danger" title="Remove point" onClick={() => setConfirmRemovePoint(i)}><Icon name="trash" size={16} /></button>
               </div>
             ))}
           </div>
           <button className="btn btn-secondary btn-sm" onClick={addPoint}><Icon name="plus" size={14} /> Add point</button>
         </div>
+        {confirmRemovePoint !== null && (
+          <ConfirmDialog
+            title="Remove point"
+            message={`Remove point ${confirmRemovePoint + 1}? This cannot be undone.`}
+            onConfirm={() => { const i = confirmRemovePoint; setConfirmRemovePoint(null); removePoint(i) }}
+            onCancel={() => setConfirmRemovePoint(null)}
+          />
+        )}
       </div>
     )
   }

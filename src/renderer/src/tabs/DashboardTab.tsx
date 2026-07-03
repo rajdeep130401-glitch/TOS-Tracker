@@ -12,6 +12,16 @@ import { assessRisk } from '../risk'
 import { buildBurnUp, forecast, VERDICT_LABEL, VERDICT_COLOR, relativeDate } from '../forecast'
 import { buildProjectReportHtml } from '../report'
 import { num, productiveHours as productiveOfRow } from '../lib/hours'
+import { useEscapeKey } from '../lib/useEscapeKey'
+
+type DashWidgetKey = 'kpis' | 'forecast' | 'charts'
+const DASH_WIDGET_LABELS: Record<DashWidgetKey, string> = { kpis: 'KPI cards', forecast: 'Budget burn-up & forecast', charts: 'Charts' }
+const DASH_WIDGET_KEYS = Object.keys(DASH_WIDGET_LABELS) as DashWidgetKey[]
+const DASH_WIDGETS_LS_KEY = 'tos_projdash_widgets'
+function loadDashWidgetPrefs(): Record<DashWidgetKey, boolean> {
+  const all: Record<DashWidgetKey, boolean> = { kpis: true, forecast: true, charts: true }
+  try { return { ...all, ...JSON.parse(localStorage.getItem(DASH_WIDGETS_LS_KEY) || '{}') } } catch { return all }
+}
 
 interface Props {
   projectId: number
@@ -45,6 +55,14 @@ export default function DashboardTab({ projectId, projectName, onToast, quotedHo
   const [data, setData] = useState<Record<string, Row[]>>({})
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
+  const [widgets, setWidgets] = useState<Record<DashWidgetKey, boolean>>(loadDashWidgetPrefs)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
+  useEscapeKey(() => setCustomizeOpen(false))
+  const toggleWidget = (k: DashWidgetKey): void => setWidgets((w) => {
+    const next = { ...w, [k]: !w[k] }
+    localStorage.setItem(DASH_WIDGETS_LS_KEY, JSON.stringify(next))
+    return next
+  })
 
   const load = useCallback(async () => {
     const types = ['rfi', 'query', 'dispatch', 'wip', 'qc', 'task', 'timesheet', 'standard', 'scope', 'input']
@@ -154,6 +172,23 @@ export default function DashboardTab({ projectId, projectName, onToast, quotedHo
       <div className="tab-toolbar">
         <div className="tab-toolbar-left"><span className="toolbar-progress">Overview · {projectName}</span></div>
         <div className="tab-toolbar-right">
+          <div className="widget-picker-wrap">
+            <button className="btn btn-secondary btn-sm" onClick={() => setCustomizeOpen((v) => !v)}><Icon name="grid" size={15} /> Customize</button>
+            {customizeOpen && (
+              <>
+                <div className="widget-picker-backdrop" onClick={() => setCustomizeOpen(false)} />
+                <div className="widget-picker" role="dialog" aria-label="Customize dashboard">
+                  <div className="widget-picker-head">Show on this dashboard</div>
+                  {DASH_WIDGET_KEYS.map((wk) => (
+                    <label key={wk} className="widget-picker-row">
+                      <input type="checkbox" checked={widgets[wk]} onChange={() => toggleWidget(wk)} />
+                      {DASH_WIDGET_LABELS[wk]}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <button className="btn btn-secondary btn-sm" onClick={statusPdf}><Icon name="file" size={15} /> Status PDF</button>
           <button className="btn btn-secondary btn-sm" onClick={exportPowerBI}><Icon name="download" size={15} /> Export for Power BI</button>
           <button className="btn btn-secondary btn-sm" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
@@ -162,6 +197,7 @@ export default function DashboardTab({ projectId, projectName, onToast, quotedHo
 
       {loading ? <DashboardSkeleton /> : (
       <div className="dashboard">
+        {widgets.kpis && (
         <div className="kpi-grid">
           <StatCard icon="folder" label="Scope" value={scope.length} sub="items" accent={COLORS.blue} onClick={go('Scope')} />
           <StatCard icon="download" label="Input" value={input.length} sub="received" accent={COLORS.purple} onClick={go('Input')} />
@@ -176,8 +212,9 @@ export default function DashboardTab({ projectId, projectName, onToast, quotedHo
           )}
           <StatCard icon="ruler" label="Standards" value={standard.length} sub="documented" accent={COLORS.purple} onClick={go('Standards')} />
         </div>
+        )}
 
-        {isAdmin && burn.points.length > 0 && (
+        {widgets.forecast && isAdmin && burn.points.length > 0 && (
           <div className="forecast-card">
             <div className="forecast-head">
               <h4><Icon name="trendingUp" size={16} /> Budget Burn-up &amp; Forecast</h4>
@@ -227,6 +264,7 @@ export default function DashboardTab({ projectId, projectName, onToast, quotedHo
           </div>
         )}
 
+        {widgets.charts && (
         <div className="chart-grid">
           <div className="chart-card">
             <h4>Task Completion</h4>
@@ -274,6 +312,7 @@ export default function DashboardTab({ projectId, projectName, onToast, quotedHo
 
           <SimilarProjects projectId={projectId} />
         </div>
+        )}
       </div>
       )}
     </div>

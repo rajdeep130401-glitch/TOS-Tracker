@@ -82,8 +82,12 @@
 :root[data-theme='light'] .drawer-overlay { background: rgba(15, 23, 42, 0.35); }
 :root[data-theme='light'] thead th { color: var(--text-muted); }
 
-body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; -webkit-font-smoothing: antialiased; transition: background 0.2s, color 0.2s; }
-#root { height: 100vh; display: flex; flex-direction: column; }
+/* min-height + auto (not a hard height:100vh/overflow:hidden) so that when the
+   real visible viewport is shorter than the reported 100vh — common over Remote
+   Desktop / scaled sessions — the page can scroll instead of silently clipping
+   content with no way to reach it. Normal full-height sessions are unaffected. */
+body { background: var(--bg); color: var(--text); min-height: 100vh; overflow-y: auto; -webkit-font-smoothing: antialiased; transition: background 0.2s, color 0.2s; }
+#root { min-height: 100vh; display: flex; flex-direction: column; }
 
 /* Base typographic rhythm (class rules override where set) */
 h1 { letter-spacing: -0.022em; line-height: 1.15; }
@@ -115,6 +119,7 @@ p { line-height: 1.55; }
 /* Buttons */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s ease; white-space: nowrap; }
 .btn:active { transform: translateY(1px); }
+.btn:disabled, .btn-icon:disabled { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.3); box-shadow: none; transform: none; }
 .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 10px var(--accent-glow); border-radius: 999px; }
 .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 16px var(--accent-glow); }
 .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
@@ -180,7 +185,7 @@ p { line-height: 1.55; }
 .project-item .proj-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .sidebar-footer { padding: 10px 16px; border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.archive-toggle { background: none; border: none; color: var(--text-muted); font-size: 11px; text-transform: none; letter-spacing: 0; cursor: pointer; padding: 0; }
+.archive-toggle { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--text-muted); font-size: 11px; text-transform: none; letter-spacing: 0; cursor: pointer; padding: 0; }
 .archive-toggle:hover { color: var(--accent); }
 
 /* Empty states */
@@ -700,6 +705,14 @@ tbody tr:last-child td { border-bottom: none; }
 .home-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
 .home-head h1 { font-size: 24px; font-weight: 800; color: var(--text); }
 .home-sub { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+.home-head-actions { display: flex; align-items: center; gap: 10px; }
+
+.widget-picker-wrap { position: relative; }
+.widget-picker-backdrop { position: fixed; inset: 0; z-index: 40; }
+.widget-picker { position: absolute; top: calc(100% + 8px); right: 0; z-index: 41; width: 240px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg, var(--shadow)); padding: 8px; }
+.widget-picker-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); padding: 6px 8px; }
+.widget-picker-row { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text); cursor: pointer; }
+.widget-picker-row:hover { background: var(--card); }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
 .kpi-card { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 18px 20px; transition: border-color .15s, transform .15s; }
@@ -736,6 +749,10 @@ tbody tr:last-child td { border-bottom: none; }
 .menu-items { display: flex; flex-direction: column; gap: 3px; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); font-size: 14px; padding: 11px 12px; border-radius: 8px; cursor: pointer; }
 .menu-item:hover { background: var(--card); }
+.menu-item-top { font-weight: 700; margin-bottom: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); border-radius: 0; }
+.menu-item-highlight { background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 12px; font-size: 15px; }
+.menu-item-highlight:hover { background: var(--accent-soft); filter: brightness(1.1); }
+.menu-item-highlight svg { color: var(--accent); }
 .menu-sub { margin-left: auto; font-size: 11px; color: var(--text-dim); font-weight: 600; }
 
 /* New-project button group (Miscellaneous / Man-Month / Time-Sheet based). */
@@ -946,8 +963,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); background-clip: content-box; }
 
-/* Brand wordmark + mark with accent gradient */
-.brand-mark { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 1px 4px var(--accent-glow)); }
+/* Brand mark (SVG icon) */
+.brand-mark { color: var(--accent); flex-shrink: 0; }
 
 /* Top bar: subtle elevation + hairline */
 .topbar { background-image: var(--sheen); box-shadow: 0 1px 0 var(--border-soft), 0 6px 18px rgba(0,0,0,0.18); position: relative; z-index: 30; }

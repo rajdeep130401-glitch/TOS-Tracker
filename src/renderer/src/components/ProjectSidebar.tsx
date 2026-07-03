@@ -2,8 +2,11 @@ import { RefObject } from 'react'
 import { Project } from '../types'
 import Icon from './Icon'
 import ProjectTree from './ProjectTree'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 interface Props {
+  show: boolean
+  onClose: () => void
   isLead: boolean
   onQuote: () => void
   onCreateType: (t: string) => void
@@ -22,15 +25,24 @@ interface Props {
   setShowArchived: (fn: (v: boolean) => boolean) => void
 }
 
-// Left project navigation: new-project shortcuts, search, the project tree,
-// and the archived-projects footer toggle. Split out of App.tsx purely to
-// keep that file under the size limit — markup/behavior unchanged.
+// Project navigation, opened on demand from Workspace → Projects (no longer a
+// permanently-docked sidebar): new-project shortcuts, search, the project
+// tree, and the archived-projects footer toggle. Picking a project closes it.
 export default function ProjectSidebar({
-  isLead, onQuote, onCreateType, visibleProjects, searchRef, search, setSearch, isManager,
+  show, onClose, isLead, onQuote, onCreateType, visibleProjects, searchRef, search, setSearch, isManager,
   filtered, statusMap, selectedId, onSelect, unseenByProject, archivedCount, showArchived, setShowArchived
 }: Props) {
+  useEscapeKey(onClose)
+  if (!show) return null
+  const pick = (id: number | null): void => { onSelect(id); onClose() }
   return (
-    <aside className="sidebar">
+    <>
+      <div className="drawer-backdrop" onClick={onClose} />
+      <aside className="workspace-drawer project-drawer" role="dialog" aria-label="Projects">
+      <div className="drawer-head">
+        <h3>Projects</h3>
+        <button className="btn-icon" onClick={onClose}><Icon name="close" size={18} /></button>
+      </div>
       <div className="sidebar-header">
         {isLead && (
           <div className="new-proj-group">
@@ -64,7 +76,7 @@ export default function ProjectSidebar({
             projects={filtered}
             statusMap={statusMap}
             selectedId={selectedId}
-            onSelect={onSelect}
+            onSelect={pick}
             searching={!!search.trim()}
             unseenByProject={unseenByProject}
           />
@@ -75,11 +87,12 @@ export default function ProjectSidebar({
           <span>{visibleProjects.length} project{visibleProjects.length !== 1 ? 's' : ''}</span>
           {archivedCount > 0 && (
             <button className="archive-toggle" onClick={() => setShowArchived((v) => !v)}>
-              {showArchived ? '✓ ' : ''}Show archived ({archivedCount})
+              {showArchived && <Icon name="checkCircle" size={13} />} Show archived ({archivedCount})
             </button>
           )}
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   )
 }

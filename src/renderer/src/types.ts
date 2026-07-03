@@ -139,6 +139,10 @@ export interface Quote {
   note_image?: string        // optional image shown under Note (base64, < 1MB)
   // Per-discipline hours { Architecture: { work, qc }, … }; Project hrs = Σ work, QC hrs = Σ qc.
   disc_hours?: Record<string, { work: string; qc: string }>
+  // Set when this quote is an "additional quote" for a project that already has one —
+  // a full, independently editable quote (same editor, same fields) linked back to the
+  // original. The linked project's quoted hours are the sum across all of its quotes.
+  parent_quote_id?: number
   status?: 'Draft' | 'Sent' | 'Approved' // single status; Approved auto-creates the project
   client_id?: number        // link to the Client registry
   approved?: boolean        // legacy mirror of status === 'Approved' (kept in sync)
@@ -182,7 +186,9 @@ export interface ChangeEvent {
   projectId?: number
 }
 
-export type ItemType = 'rfi' | 'query' | 'dispatch' | 'status' | 'wip' | 'qc' | 'timesheet' | 'task'
+export type ItemType =
+  | 'rfi' | 'query' | 'dispatch' | 'status' | 'wip' | 'qc' | 'timesheet' | 'task'
+  | 'standard' | 'scope' | 'meeting' | 'input' | 'feedback' | 'allocation'
 
 export interface IpcResponse<T> {
   ok: boolean

@@ -40,7 +40,7 @@ export default function PathTab({ type, singular, projectId, projectName, onToas
       v ? (
         <div className="path-cell">
           <span className="path-text" title={String(v)}>{String(v)}</span>
-          {isUrl(String(v)) && <button className="btn-icon" title="Open link" onClick={(e) => { e.stopPropagation(); openPath(String(v)) }}>↗</button>}
+          {isUrl(String(v)) && <button className="btn-icon" title="Open link" onClick={(e) => { e.stopPropagation(); openPath(String(v)) }}><Icon name="externalLink" size={15} /></button>}
           <button className="btn-icon" title="Copy path" onClick={(e) => { e.stopPropagation(); copyPath(String(v)) }}><Icon name="clipboard" size={15} /></button>
         </div>
       ) : (

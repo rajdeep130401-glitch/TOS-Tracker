@@ -122,7 +122,7 @@ export default function DataTable({ columns, rows, onEdit, onDelete, emptyHint, 
                 <span className="th-inner">
                   {c.label}
                   <span className={`sort-arrow${sortKey === c.key ? ' active' : ''}`}>
-                    {sortKey === c.key ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+                    <Icon name="chevronDown" size={11} style={sortKey === c.key && sortDir === 'asc' ? { transform: 'rotate(180deg)' } : undefined} />
                   </span>
                 </span>
               </th>

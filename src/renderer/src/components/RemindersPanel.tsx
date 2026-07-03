@@ -118,7 +118,7 @@ export default function RemindersPanel({ projects, onClose, onToast, onNavigate,
         </div>
         <div className="drawer-toolbar">
           <button className="btn btn-secondary btn-sm" onClick={notify}><Icon name="bellRing" size={15} /> Desktop notify</button>
-          <button className="btn btn-secondary btn-sm" onClick={load}>↻ Refresh</button>
+          <button className="btn btn-secondary btn-sm" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
           <button className="btn btn-secondary btn-sm" onClick={clearAll} title="Mark everything as read and clear recent updates"><Icon name="checkCircle" size={15} /> Mark all read</button>
         </div>
         <div className="drawer-body">

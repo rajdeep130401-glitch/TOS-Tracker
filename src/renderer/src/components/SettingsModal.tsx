@@ -146,7 +146,7 @@ export default function SettingsModal({ onClose, onToast }: Props) {
             <p className="attach-hint">Save a full snapshot of all data to a file, or restore from one. Restore replaces current data (a safety copy is kept automatically).</p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-secondary" onClick={backupNow}><Icon name="download" size={15} /> Backup now</button>
-              <button className="btn btn-secondary" onClick={() => setConfirmRestore(true)}>⬆ Restore from backup…</button>
+              <button className="btn btn-secondary" onClick={() => setConfirmRestore(true)}><Icon name="restore" size={15} /> Restore from backup…</button>
             </div>
           </div>
         </div>

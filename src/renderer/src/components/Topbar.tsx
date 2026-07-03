@@ -9,10 +9,10 @@ interface Props {
   showMenu: boolean
   onToggleMenu: () => void
   onCloseMenu: () => void
+  onOpenProjects: () => void
   authMode: string
   currentMember: Member | null
   authUser: AuthUser | null
-  onChangePassword: () => void
   onLogout: () => void
   setCurrentMember: (id: number | null) => void
   members: Member[]
@@ -27,8 +27,6 @@ interface Props {
   isLead: boolean
   isCompanyAdmin: boolean
   exportAllData: () => void
-  fsModals: boolean
-  setFsModals: (fn: (v: boolean) => boolean) => void
   theme: 'dark' | 'light'
   setTheme: (fn: (t: 'dark' | 'light') => 'dark' | 'light') => void
 }
@@ -38,14 +36,14 @@ interface Props {
 // App.tsx purely to keep that file under the size limit — markup/behavior
 // unchanged from its previous inline form.
 export default function Topbar({
-  onGoHome, updateCount, showMenu, onToggleMenu, onCloseMenu, authMode, currentMember, authUser,
-  onChangePassword, onLogout, setCurrentMember, members, onOpenPalette, setFeature, taskUpdateCount,
+  onGoHome, updateCount, showMenu, onToggleMenu, onCloseMenu, onOpenProjects, authMode, currentMember, authUser,
+  onLogout, setCurrentMember, members, onOpenPalette, setFeature, taskUpdateCount,
   reminderCount, onOpenReminders, sectionOpen, toggleSection, isAdmin, isLead, isCompanyAdmin,
-  exportAllData, fsModals, setFsModals, theme, setTheme
+  exportAllData, theme, setTheme
 }: Props) {
   return (
     <header className="topbar">
-      <div className="topbar-brand"><span className="brand-mark">▦</span> TOS Tracker</div>
+      <div className="topbar-brand"><Icon name="grid" size={18} className="brand-mark" /> TOS Tracker</div>
       <button className="btn btn-secondary topbar-workspace-btn" onClick={onGoHome} title="Home dashboard"><Icon name="home" size={16} /> Home</button>
       <button className="btn btn-secondary topbar-workspace-btn" onClick={onToggleMenu} title={updateCount > 0 ? `${updateCount} unseen update${updateCount === 1 ? '' : 's'}` : 'Workspace'}><Icon name="menu" size={16} /> {updateCount > 0 && <span className="reminder-pill">{updateCount}</span>}Workspace</button>
       <div className="topbar-actions">
@@ -54,7 +52,7 @@ export default function Topbar({
             <span>Signed in as</span>
             <strong>{currentMember?.name ?? authUser?.name}</strong>
             <span className="role-chip">{authUser?.role}</span>
-            <button className="btn btn-secondary btn-sm" onClick={onChangePassword} title="Change password"><Icon name="settings" size={15} /> Change Password</button>
+            <button className="btn btn-secondary btn-sm" disabled title="Not available during beta"><Icon name="settings" size={15} /> Change Password</button>
             <button className="btn btn-secondary btn-sm" onClick={onLogout} title="Sign out"><Icon name="logout" size={15} /> Logout</button>
           </div>
         ) : (
@@ -79,6 +77,7 @@ export default function Topbar({
           <WorkspaceDrawer
             show={showMenu}
             onCloseMenu={onCloseMenu}
+            onOpenProjects={onOpenProjects}
             sectionOpen={sectionOpen}
             toggleSection={toggleSection}
             isAdmin={isAdmin}
@@ -86,8 +85,6 @@ export default function Topbar({
             isCompanyAdmin={isCompanyAdmin}
             setFeature={setFeature}
             exportAllData={exportAllData}
-            fsModals={fsModals}
-            setFsModals={setFsModals}
             theme={theme}
             setTheme={setTheme}
           />

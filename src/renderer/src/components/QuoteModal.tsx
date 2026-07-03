@@ -6,10 +6,10 @@ import { useFilters } from './FilterBar'
 import { useApp } from '../context/AppContext'
 import { useData } from '../context/DataContext'
 import { DISCIPLINES, splitDisciplines } from '../disciplines'
-import { num } from '../lib/hours'
 import { useEscapeKey } from '../lib/useEscapeKey'
+import { roleRank, RANK_MANAGER } from '../roles'
 import {
-  Draft, Status, today, niceDate, statusOf, dhOf, computeHours, QUOTE_CSS, quoteBody, wordHtml, fullHtml
+  Draft, Status, today, niceDate, statusOf, dhOf, computeHours, QUOTE_CSS, quoteBody, wordHtml, fullHtml, esc, syncScope
 } from '../lib/quoteDoc'
 
 interface Props {
@@ -50,7 +50,7 @@ const TEXT_FIELDS: { key: keyof Quote; label: string; area?: boolean; optional?:
 
 export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
   useEscapeKey(onClose)
-  const { currentMember, isLead } = useApp()
+  const { currentMember, isLead, members } = useApp()
   const { projects: allProjects, refreshAll: refreshData } = useData()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -86,6 +86,17 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
 
   const startNew = (): void => setDraft({ ...BLANK, date: today(), quote_no: nextQuoteNo, disc_hours: {} })
   const startEdit = (q: Quote): void => setDraft({ ...q, status: statusOf(q), lod_type: q.lod_type ?? 'LOD', disc_hours: q.disc_hours ?? {} })
+  // "Add additional quote" — a full, independently editable quote (same editor, same
+  // fields) linked to an already-approved parent via parent_quote_id. Pre-fills the
+  // client/project link only; the scope-of-work fields start blank for the new scope.
+  const startAddendum = (parent: Quote): void =>
+    setDraft({
+      ...BLANK, date: today(), quote_no: nextQuoteNo, disc_hours: {},
+      client_id: parent.client_id, client_name: parent.client_name,
+      project_name: parent.project_name, project_id: parent.project_id,
+      parent_quote_id: parent.id
+    })
+  const parentOf = (q: Quote): Quote | undefined => quotes.find((x) => x.id === q.parent_quote_id)
   const setF = (k: keyof Quote, v: string): void => setDraft((d) => (d ? { ...d, [k]: v } : d))
   const setDH = (disc: string, field: 'work' | 'qc', v: string): void =>
     setDraft((d) => (d ? { ...d, disc_hours: { ...(d.disc_hours ?? {}), [disc]: { ...dhOf(d, disc), [field]: v } } } : d))
@@ -104,7 +115,7 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
       <span>↳ image (optional)</span>
       <div style={{ flex: 1 }}>
         <input type="file" accept="image/*" onChange={(e) => onImageFor(key, e.target.files?.[0])} />
-        <div className="attach-hint" style={{ marginTop: 4 }}>⚠ import an image under 1 MB only.</div>
+        <div className="attach-hint" style={{ marginTop: 4 }}><Icon name="alertTriangle" size={13} /> import an image under 1 MB only.</div>
         {draft?.[key] && (
           <div style={{ marginTop: 6 }}>
             <img src={draft[key] as string} alt="" style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 6, border: '1px solid var(--border)' }} />
@@ -127,39 +138,11 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
     onToast('Client added')
   }
 
-  // ALL quote details → one consolidated Scope-of-Work document on the project.
-  const syncScope = async (projectId: number, q: Draft): Promise<void> => {
-    const res = await window.api.items.getByProject(projectId, 'scope')
-    const rows = (res.ok ? res.data : []) as Record<string, unknown>[]
-    const sel = splitDisciplines(String(q.disciplines ?? ''))
-    const { project, qc } = computeHours(q)
-    const lines: string[] = []
-    const add = (label: string, v?: string): void => { const s = String(v ?? '').trim(); if (s) lines.push(`${label}: ${s}`) }
-    add('Client', q.client_name)
-    add('Project', q.project_name)
-    add('Description', q.description)
-    add('Project Hours', String(project || ''))
-    add('QC Hours', String(qc || ''))
-    add('Type of Building', q.type_of_building)
-    add('Disciplines', q.disciplines)
-    for (const disc of sel) { const e = dhOf(q, disc); if (num(e.work) || num(e.qc)) add(`${disc} hrs`, `${e.work || 0} work / ${e.qc || 0} QC`) }
-    add(q.lod_type || 'LOD', q.lod)
-    add('Tolerance', q.tolerance)
-    add('Type of Project', q.type_of_project)
-    add('Area', q.area); add('Units', q.units); add('Software', q.software)
-    add('Inputs Received', q.inputs_received); add('Output Deliverable', q.output_deliverable)
-    add('Inputs Required', q.inputs_required); add('Exclusions', q.exclusions); add('Note', q.note)
-    const body = lines.join('\n')
-    const title = `Scope of Work — ${String(q.project_name ?? '').trim() || String(q.quote_no ?? '').trim() || 'Quote'}`
-    for (const r of rows) {
-      if (Number(r.quote_id) === Number(q.id) && r.quote_field && r.quote_field !== '__doc') await window.api.items.delete('scope', Number(r.id))
-    }
-    const doc = rows.find((r) => Number(r.quote_id) === Number(q.id) && r.quote_field === '__doc')
-    if (doc) await window.api.items.update('scope', { id: doc.id, project_id: projectId, title, path: (doc.path as string) ?? '', notes: body, quote_id: q.id, quote_field: '__doc' })
-    else await window.api.items.create('scope', { project_id: projectId, title, path: '', notes: body, quote_id: q.id, quote_field: '__doc' })
-  }
 
-  // Persist with the chosen status. 'Approved' creates/syncs the project (and links the client).
+  // Persist with the chosen status. 'Approved' creates/syncs the project (and links the
+  // client). A project's quoted hours are the SUM of every quote linked to it (the base
+  // quote plus any additional quotes), so approving/editing any one of them keeps the
+  // project total correct without clobbering the others' contributions.
   const persist = async (d: Draft): Promise<void> => {
     if (!String(d.client_name ?? '').trim() || !String(d.project_name ?? '').trim()) {
       onToast('Client and Project Name are required', 'error'); return
@@ -177,6 +160,10 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
 
       let projectId = d.project_id
       const isNew = !projectId
+      const projectTotalHours = (): number => {
+        const others = quotes.filter((x) => x.project_id === projectId && x.id !== quoteId)
+        return [...others, payload].reduce((sum, x) => { const h = computeHours(x); return sum + h.project + h.qc }, 0)
+      }
       if (!projectId) {
         const pr = await window.api.projects.create({
           name: String(d.project_name ?? ''), client: String(d.client_name ?? ''), location: '',
@@ -191,13 +178,28 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
         await window.api.projects.update({
           id: projectId, name: String(d.project_name ?? ''), client: String(d.client_name ?? ''),
           location: existing?.location ?? '', discipline: String(d.disciplines ?? ''),
-          quoted_hours: String(project + qc), start_date: existing?.start_date ?? '', end_date: existing?.end_date ?? '',
+          quoted_hours: String(projectTotalHours()), start_date: existing?.start_date ?? '', end_date: existing?.end_date ?? '',
           client_id: d.client_id ?? null
         })
       }
       await syncScope(projectId, { ...payload, id: quoteId })
       void refreshData()
-      onToast(isNew ? `Approved — project “${d.project_name}” created with scope` : 'Quote, project details & scope updated')
+
+      // An additional quote (parent_quote_id set) notifies the Manager(s) directly on
+      // approval — deliberately NOT routed through the general in-app updates feed
+      // (projectUpdates.ts), per the "no other notification" rule.
+      if (d.parent_quote_id) {
+        const managers = members.filter((m) => roleRank(m.role) >= RANK_MANAGER && m.status !== 'left' && m.email)
+        if (managers.length) {
+          const subject = `Additional quote approved — ${d.quote_no} (${d.project_name})`
+          const html = `<p><strong>${currentMember?.name ?? 'A Team Lead'}</strong> approved an additional quote <strong>${esc(d.quote_no)}</strong> linked to project <strong>${esc(d.project_name)}</strong>:</p>
+            <ul><li>${esc(d.disciplines || 'Additional scope')}: +${project} work hrs / +${qc} QC hrs</li></ul>
+            <p>Project quoted hours are now ${projectTotalHours()}.</p>`
+          void window.api.email.send({ to: managers.map((m) => m.email).join(','), subject, html }).catch(() => { /* best-effort */ })
+        }
+      }
+
+      onToast(isNew ? `Approved — project “${d.project_name}” created with scope` : d.parent_quote_id ? 'Additional quote approved — project & scope updated' : 'Quote, project details & scope updated')
       setDraft(null); load()
       if (isNew && projectId != null) onOpenProject?.(projectId)
     } finally { setSaving(false) }
@@ -263,6 +265,11 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
           {draft ? (
             <div className="quote-editor">
               <div className="quote-form">
+                {draft.parent_quote_id && (
+                  <p className="attach-hint">
+                    This is an <strong>additional quote</strong> linked to project <strong>{draft.project_name}</strong> — fill in the new scope of work below. On approval, its hours add to the project's total and the Manager is notified.
+                  </p>
+                )}
                 <div className="quote-form-section">Quotation details</div>
                 <label className="quote-field"><span>Date</span>
                   <input type="date" value={draft.date ?? ''} onChange={(e) => setF('date', e.target.value)} />
@@ -369,7 +376,7 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
                 <label className="quote-field"><span>Image</span>
                   <div style={{ flex: 1 }}>
                     <input type="file" accept="image/*" onChange={(e) => onImageFor('image', e.target.files?.[0])} />
-                    <div className="attach-hint" style={{ marginTop: 4 }}>⚠ Please import an image under 1 MB only.</div>
+                    <div className="attach-hint" style={{ marginTop: 4 }}><Icon name="alertTriangle" size={13} /> Please import an image under 1 MB only.</div>
                     {draft.image && (
                       <div style={{ marginTop: 6 }}>
                         <img src={draft.image} alt="reference" style={{ maxWidth: '100%', maxHeight: 140, borderRadius: 6, border: '1px solid var(--border)' }} />
@@ -401,7 +408,12 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
                       const st = statusOf(q)
                       return (
                         <tr key={q.id}>
-                          <td>{q.quote_no || '—'}</td>
+                          <td>
+                            {q.quote_no || '—'}
+                            {q.parent_quote_id && (
+                              <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>↳ additional to {parentOf(q)?.quote_no ?? `#${q.parent_quote_id}`}</div>
+                            )}
+                          </td>
                           <td>{niceDate(q.date) || '—'}</td>
                           <td>{q.client_name || '—'}</td>
                           <td>{q.project_name || '—'}</td>
@@ -411,6 +423,9 @@ export default function QuoteModal({ onClose, onToast, onOpenProject }: Props) {
                             <span className={`badge ${st === 'Approved' ? 'badge-resolved' : st === 'Sent' ? 'badge-on-going' : 'badge-pending'}`} title={st === 'Approved' && q.project_id ? `Project #${q.project_id} created` : ''}>{st}</span>
                           </td>
                           <td className="quote-row-actions">
+                            {st === 'Approved' && q.project_id && (
+                              <button className="btn-icon" title="Add additional quote (a new, editable quote linked to this project)" onClick={() => startAddendum(q)}><Icon name="plus" size={16} /></button>
+                            )}
                             <button className="btn-icon" title="Edit" onClick={() => startEdit(q)}><Icon name="edit" size={16} /></button>
                             <button className="btn-icon" title="Print / PDF" onClick={() => printQuote(q)}><Icon name="file" size={16} /></button>
                             <button className="btn-icon" title="Word (.doc)" onClick={() => downloadWord(q)}><Icon name="download" size={16} /></button>

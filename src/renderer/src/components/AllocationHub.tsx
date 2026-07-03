@@ -26,7 +26,7 @@ export default function AllocationHub({ projects, onClose, onToast, onChanged }:
     <>
       <div className="tab-toolbar" style={{ flexShrink: 0 }}>
         <div className="tab-toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>← Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={onClose}><Icon name="arrowLeft" size={14} /> Back</button>
           <div className="exec-tabs" style={{ margin: 0 }}>
             {isLead && <button className={`exec-tab${tab === 'work' ? ' active' : ''}`} onClick={() => setTab('work')}><Icon name="calendar" size={16} /> Work allocation</button>}
             <button className={`exec-tab${tab === 'task' ? ' active' : ''}`} onClick={() => setTab('task')}><Icon name="checkSquare" size={16} /> Task allocation</button>

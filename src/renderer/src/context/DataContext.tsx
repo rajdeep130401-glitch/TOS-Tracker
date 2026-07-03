@@ -113,13 +113,46 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return m
   }, [statuses])
 
-  const tasksByProject = useCallback((pid: number) => tasks.filter((t) => Number(t.project_id) === pid), [tasks])
-  const timesheetsByProject = useCallback((pid: number) => timesheets.filter((t) => Number(t.project_id) === pid), [timesheets])
-  const qcByProject = useCallback((pid: number) => qc.filter((q) => Number(q.project_id) === pid), [qc])
-  const memberIdsForProject = useCallback(
-    (pid: number) => projectMembers.filter((l) => l.project_id === pid).map((l) => l.member_id),
-    [projectMembers]
-  )
+  const tasksMap = useMemo(() => {
+    const m = new Map<number, Row[]>()
+    for (const t of tasks) {
+      const pid = Number(t.project_id)
+      const arr = m.get(pid)
+      if (arr) arr.push(t); else m.set(pid, [t])
+    }
+    return m
+  }, [tasks])
+  const timesheetsMap = useMemo(() => {
+    const m = new Map<number, Row[]>()
+    for (const t of timesheets) {
+      const pid = Number(t.project_id)
+      const arr = m.get(pid)
+      if (arr) arr.push(t); else m.set(pid, [t])
+    }
+    return m
+  }, [timesheets])
+  const qcMap = useMemo(() => {
+    const m = new Map<number, Row[]>()
+    for (const q of qc) {
+      const pid = Number(q.project_id)
+      const arr = m.get(pid)
+      if (arr) arr.push(q); else m.set(pid, [q])
+    }
+    return m
+  }, [qc])
+  const memberIdsMap = useMemo(() => {
+    const m = new Map<number, number[]>()
+    for (const l of projectMembers) {
+      const arr = m.get(l.project_id)
+      if (arr) arr.push(l.member_id); else m.set(l.project_id, [l.member_id])
+    }
+    return m
+  }, [projectMembers])
+
+  const tasksByProject = useCallback((pid: number) => tasksMap.get(pid) ?? [], [tasksMap])
+  const timesheetsByProject = useCallback((pid: number) => timesheetsMap.get(pid) ?? [], [timesheetsMap])
+  const qcByProject = useCallback((pid: number) => qcMap.get(pid) ?? [], [qcMap])
+  const memberIdsForProject = useCallback((pid: number) => memberIdsMap.get(pid) ?? [], [memberIdsMap])
 
   const value: DataValue = {
     projects, statuses, statusMap, tasks, timesheets, qc, projectMembers, loading,

@@ -12,7 +12,7 @@ export type IconName =
   | 'barChart' | 'pin' | 'brain' | 'clipboard' | 'play' | 'pause' | 'hourglass' | 'send'
   | 'help' | 'ruler' | 'wrench' | 'building' | 'hardHat' | 'cog' | 'road' | 'sofa' | 'tree' | 'map'
   | 'file' | 'bellRing' | 'party' | 'trendingUp' | 'home' | 'quote' | 'chevronDown' | 'externalLink' | 'sort'
-  | 'chevronLeft' | 'chevronRight'
+  | 'chevronLeft' | 'chevronRight' | 'alertTriangle'
 
 const P: Record<IconName, React.ReactNode> = {
   menu: <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>,
@@ -73,7 +73,8 @@ const P: Record<IconName, React.ReactNode> = {
   quote: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M12 7.5v9" /><path d="M14.4 9.3c-.5-.7-1.4-1.1-2.4-1.1-1.4 0-2.4.8-2.4 1.9 0 1.2 1 1.6 2.4 1.9s2.4.7 2.4 1.9c0 1.1-1 1.9-2.4 1.9-1 0-1.9-.4-2.4-1.1" /></>,
   sort: <><path d="M8 4v16" /><polyline points="4 8 8 4 12 8" /><path d="M16 20V4" /><polyline points="12 16 16 20 20 16" /></>,
   chevronLeft: <polyline points="15 18 9 12 15 6" />,
-  chevronRight: <polyline points="9 18 15 12 9 6" />
+  chevronRight: <polyline points="9 18 15 12 9 6" />,
+  alertTriangle: <><path d="M12 3.5 2 20.5h20z" /><line x1="12" y1="9.5" x2="12" y2="14" /><line x1="12" y1="17.2" x2="12" y2="17.2" /></>
 }
 
 interface Props {

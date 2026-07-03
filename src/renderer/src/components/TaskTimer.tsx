@@ -95,20 +95,35 @@ export default function TaskTimer({ projects, onToast }: Props) {
     return mine
   }, [allTasks, allQc, projName, currentMember])
 
+  const clampToViewport = (x: number, y: number): { x: number; y: number } => {
+    const w = cardRef.current?.offsetWidth ?? 300, h = cardRef.current?.offsetHeight ?? 180
+    return {
+      x: Math.max(6, Math.min(window.innerWidth - w - 6, x)),
+      y: Math.max(6, Math.min(window.innerHeight - h - 6, y))
+    }
+  }
+
   // Drag handling.
   useEffect(() => {
     if (!dragging) return
-    const move = (e: MouseEvent): void => {
-      const w = cardRef.current?.offsetWidth ?? 300, h = cardRef.current?.offsetHeight ?? 180
-      let x = e.clientX - offset.current.dx, y = e.clientY - offset.current.dy
-      x = Math.max(6, Math.min(window.innerWidth - w - 6, x))
-      y = Math.max(6, Math.min(window.innerHeight - h - 6, y))
-      setPos({ x, y })
-    }
+    const move = (e: MouseEvent): void => setPos(clampToViewport(e.clientX - offset.current.dx, e.clientY - offset.current.dy))
     const up = (): void => setDragging(false)
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', up)
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up) }
   }, [dragging])
+
+  // A position restored from a previous session (e.g. dragged on a normal monitor)
+  // can end up off-screen or under OS/remote-desktop chrome on a smaller viewport
+  // (Remote Desktop sessions especially) — re-clamp on load and on resize so the
+  // timer is never stuck somewhere unreachable.
+  useEffect(() => {
+    if (!pos) return
+    const reclamp = (): void => setPos((p) => (p ? clampToViewport(p.x, p.y) : p))
+    reclamp()
+    window.addEventListener('resize', reclamp)
+    return () => window.removeEventListener('resize', reclamp)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos !== null])
 
   // Separate always-on-top window (Document Picture-in-Picture, popup fallback).
   const popout = usePopout({ title: 'Task timer', width: 320, height: 250 })

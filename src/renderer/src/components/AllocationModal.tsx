@@ -185,13 +185,13 @@ export default function AllocationModal({ projects, onClose, onToast, embedded }
     <div className="tab-content work-alloc-page">
       <div className="tab-toolbar">
         <div className="tab-toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {!embedded && <button className="btn btn-secondary btn-sm" onClick={onClose}>← Back</button>}
+          {!embedded && <button className="btn btn-secondary btn-sm" onClick={onClose}><Icon name="arrowLeft" size={14} /> Back</button>}
           <span className="toolbar-progress" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="calendar" size={16} /> Work Allocation</span>
         </div>
         <div className="tab-toolbar-right">
-          <button className="btn btn-secondary btn-sm" onClick={() => shiftDate(-1)}>← Prev</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => shiftDate(-1)}><Icon name="chevronLeft" size={14} /> Prev</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setDate(iso(new Date()))}>Today</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => shiftDate(1)}>Next →</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => shiftDate(1)}>Next <Icon name="chevronRight" size={14} /></button>
           <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} style={{ width: 150 }} />
           <button className="btn btn-secondary btn-sm" onClick={exportCsv}><Icon name="download" size={14} /> CSV</button>
         </div>

@@ -138,7 +138,7 @@ export function FilterBar(p: BarProps) {
               title={p.sortKey ? (p.sortDir === 'asc' ? 'Ascending — click for descending' : 'Descending — click for ascending') : 'Pick a field to sort'}
               onClick={p.onToggleDir}
             >
-              {p.sortDir === 'asc' ? '↑' : '↓'}
+              <Icon name="chevronDown" size={14} style={p.sortDir === 'asc' ? { transform: 'rotate(180deg)' } : undefined} />
             </button>
           </div>
         )}

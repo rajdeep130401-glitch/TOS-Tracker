@@ -44,7 +44,7 @@ interface ToastState { message: string; type: 'success' | 'error'; key: number; 
 export type Feature =
   | 'members' | 'settings' | 'assign' | 'org' | 'myTasks' | 'myWeek'
   | 'talent' | 'bestFit' | 'disc' | 'workAlloc' | 'taskAlloc' | 'alloc'
-  | 'myAlloc' | 'approvals' | 'staffing' | 'empDash' | 'exec' | 'quote' | 'clients' | 'recycleBin'
+  | 'myAlloc' | 'approvals' | 'staffing' | 'empDash' | 'exec' | 'quote' | 'clientData' | 'clientDash' | 'recycleBin'
 
 // Direct project creation (Man-Month / Time-Sheet based) — no quote required. The
 // project `type` is fixed by which button was clicked, so it's not in the form.
@@ -94,6 +94,9 @@ function Shell() {
     showToast(`Project “${data.name}” created`)
   }
   const [showMenu, setShowMenu] = useState(false)
+  // Project navigation is opened on demand (Workspace → Projects) rather than
+  // living in a permanently-docked sidebar.
+  const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [showChangePw, setShowChangePw] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -101,8 +104,9 @@ function Shell() {
   const [myAssignments, setMyAssignments] = useState<Set<number>>(new Set())
   const [reminderCount, setReminderCount] = useState(0)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark')
-  // Full-window popups are the default now; users can opt back to centered cards.
-  const [fsModals, setFsModals] = useState(() => localStorage.getItem('tos_fullscreen') !== 'off')
+  // Full-window popups (the Workspace menu toggle for this was removed; keeps
+  // whatever was last persisted, defaulting on).
+  const [fsModals] = useState(() => localStorage.getItem('tos_fullscreen') !== 'off')
   // Collapsible Workspace menu sections (default expanded; persisted).
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     try { return JSON.parse(localStorage.getItem('tos_menu_sections') || '{}') } catch { return {} }
@@ -319,10 +323,10 @@ function Shell() {
         showMenu={showMenu}
         onToggleMenu={() => setShowMenu((v) => !v)}
         onCloseMenu={() => setShowMenu(false)}
+        onOpenProjects={() => setShowProjectPicker(true)}
         authMode={authMode}
         currentMember={currentMember}
         authUser={authUser}
-        onChangePassword={() => setShowChangePw(true)}
         onLogout={logout}
         setCurrentMember={setCurrentMember}
         members={members}
@@ -337,33 +341,33 @@ function Shell() {
         isLead={isLead}
         isCompanyAdmin={isCompanyAdmin}
         exportAllData={exportAllData}
-        fsModals={fsModals}
-        setFsModals={setFsModals}
         theme={theme}
         setTheme={setTheme}
       />
 
-      <div className="app-layout">
-        {/* Sidebar */}
-        <ProjectSidebar
-          isLead={isLead}
-          onQuote={() => setFeature('quote')}
-          onCreateType={setCreateType}
-          visibleProjects={visibleProjects}
-          searchRef={searchRef}
-          search={search}
-          setSearch={setSearch}
-          isManager={isManager}
-          filtered={filtered}
-          statusMap={statusMap}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          unseenByProject={unseenByProject}
-          archivedCount={archivedCount}
-          showArchived={showArchived}
-          setShowArchived={setShowArchived}
-        />
+      {/* Project navigation: opened on demand from Workspace → Projects. */}
+      <ProjectSidebar
+        show={showProjectPicker}
+        onClose={() => setShowProjectPicker(false)}
+        isLead={isLead}
+        onQuote={() => setFeature('quote')}
+        onCreateType={setCreateType}
+        visibleProjects={visibleProjects}
+        searchRef={searchRef}
+        search={search}
+        setSearch={setSearch}
+        isManager={isManager}
+        filtered={filtered}
+        statusMap={statusMap}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        unseenByProject={unseenByProject}
+        archivedCount={archivedCount}
+        showArchived={showArchived}
+        setShowArchived={setShowArchived}
+      />
 
+      <div className="app-layout">
         {/* Main */}
         <main className="main-area">
           {feature === 'empDash' && empDashMember ? (
@@ -433,7 +437,9 @@ function Shell() {
           {feature === 'staffing' && <StaffingModal projects={visibleProjects} onClose={() => { closeFeature(); loadAssignments() }} onToast={showToast} />}
           {(feature === 'exec' || feature === 'disc') && <ExecDashboard key={feature} projects={visibleProjects} initialView={feature === 'disc' ? 'discipline' : 'portfolio'} onClose={closeFeature} onSelect={setSelectedId} onToast={showToast} />}
           {feature === 'quote' && <QuoteModal onClose={closeFeature} onToast={showToast} onOpenProject={async (id) => { await Promise.all([loadProjects(), loadAssignments()]); setSelectedId(id) }} />}
-          {feature === 'clients' && <ClientsModal projects={visibleProjects} onClose={closeFeature} onToast={showToast} onSelect={setSelectedId} />}
+          {(feature === 'clientData' || feature === 'clientDash') && (
+            <ClientsModal mode={feature === 'clientData' ? 'data' : 'dashboard'} projects={visibleProjects} onClose={closeFeature} onToast={showToast} onSelect={setSelectedId} />
+          )}
           {feature === 'recycleBin' && <RecycleBinModal onClose={closeFeature} onToast={showToast} onChanged={() => { loadProjects(); loadAssignments() }} />}
           {feature === 'org' && <OrgChartModal onClose={closeFeature} />}
           {feature === 'myTasks' && <MyTasksModal projects={visibleProjects} onClose={closeFeature} onToast={showToast} />}
@@ -465,7 +471,7 @@ function Shell() {
 function Gate() {
   const { authChecked, needsLogin } = useApp()
   if (!authChecked) {
-    return <div className="login-screen"><div className="login-card"><div className="login-brand"><span className="brand-mark">▦</span> TOS Tracker</div><p className="login-sub">Loading…</p></div></div>
+    return <div className="login-screen"><div className="login-card"><div className="login-brand"><Icon name="grid" size={18} className="brand-mark" /> TOS Tracker</div><p className="login-sub">Loading…</p></div></div>
   }
   if (needsLogin) return <Login />
   return (

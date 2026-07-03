@@ -32,6 +32,40 @@ export function computeHours(d: Draft): { project: number; qc: number; any: bool
   return any ? { project: work, qc, any } : { project: num(d.project_hours), qc: num(d.qc_hours), any }
 }
 
+// ALL quote details → one consolidated Scope-of-Work document on the project.
+export async function syncScope(projectId: number, q: Draft): Promise<void> {
+  const res = await window.api.items.getByProject(projectId, 'scope')
+  const rows = (res.ok ? res.data : []) as Record<string, unknown>[]
+  const sel = splitDisciplines(String(q.disciplines ?? ''))
+  const { project, qc } = computeHours(q)
+  const lines: string[] = []
+  const add = (label: string, v?: string): void => { const s = String(v ?? '').trim(); if (s) lines.push(`${label}: ${s}`) }
+  add('Client', q.client_name)
+  add('Project', q.project_name)
+  add('Description', q.description)
+  add('Project Hours', String(project || ''))
+  add('QC Hours', String(qc || ''))
+  add('Type of Building', q.type_of_building)
+  add('Disciplines', q.disciplines)
+  for (const disc of sel) { const e = q.disc_hours?.[disc] ?? { work: '', qc: '' }; if (num(e.work) || num(e.qc)) add(`${disc} hrs`, `${e.work || 0} work / ${e.qc || 0} QC`) }
+  add(q.lod_type || 'LOD', q.lod)
+  add('Tolerance', q.tolerance)
+  add('Type of Project', q.type_of_project)
+  add('Area', q.area); add('Units', q.units); add('Software', q.software)
+  add('Inputs Received', q.inputs_received); add('Output Deliverable', q.output_deliverable)
+  add('Inputs Required', q.inputs_required); add('Exclusions', q.exclusions); add('Note', q.note)
+  const body = lines.join('\n')
+  const title = q.parent_quote_id
+    ? `Additional Quote — ${String(q.quote_no ?? '').trim() || 'Addendum'}`
+    : `Scope of Work — ${String(q.project_name ?? '').trim() || String(q.quote_no ?? '').trim() || 'Quote'}`
+  for (const r of rows) {
+    if (Number(r.quote_id) === Number(q.id) && r.quote_field && r.quote_field !== '__doc') await window.api.items.delete('scope', Number(r.id))
+  }
+  const doc = rows.find((r) => Number(r.quote_id) === Number(q.id) && r.quote_field === '__doc')
+  if (doc) await window.api.items.update('scope', { id: doc.id, project_id: projectId, title, path: (doc.path as string) ?? '', notes: body, quote_id: q.id, quote_field: '__doc' })
+  else await window.api.items.create('scope', { project_id: projectId, title, path: '', notes: body, quote_id: q.id, quote_field: '__doc' })
+}
+
 export const QUOTE_CSS = `
 .q-doc{box-sizing:border-box;width:210mm;max-width:100%;margin:0 auto;padding:15mm 15mm 18mm;background:#fff;color:#1a1a1a;font-family:Calibri,'Segoe UI',Arial,sans-serif;font-size:12.5px;line-height:1.5;box-shadow:0 2px 16px rgba(0,0,0,.18)}
 .q-doc *{box-sizing:border-box}
@@ -129,6 +163,7 @@ export function quoteBody(q: Draft): string {
 
   const scopeSection = scope ? `<div class="q-scope-title">Detailed Scope of work:</div>${scope}` : ''
   const refImg = q.image ? `<div class="q-scope-title">Reference Image:</div><img class="q-img" src="${q.image}" alt="reference"/>` : ''
+  const addendumTag = q.parent_quote_id ? `<p class="q-line"><span class="q-lbl">Additional Quote for Project:</span> ${esc(q.project_name)}</p>` : ''
 
   return `<div class="q-doc">
     <div class="q-head">
@@ -136,6 +171,7 @@ export function quoteBody(q: Draft): string {
       <div class="q-addr"><strong>Tesla Outsourcing Services</strong><br/>10th Floor Salister Bldg<br/>Rajpath Rangoli Road<br/>Behind Rajpath Club<br/>Ahmedabad &ndash; Gujarat | India</div>
     </div>
     <table class="q-meta"><tbody>${head}</tbody></table>
+    ${addendumTag}
     ${scopeSection}
     ${refImg}
   </div>`

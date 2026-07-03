@@ -7,6 +7,7 @@ import { useData } from '../context/DataContext'
 import Donut from './charts/Donut'
 import Bars from './charts/Bars'
 import GanttTimeline from './GanttTimeline'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 interface Props {
   projects: Project[]
@@ -24,6 +25,23 @@ interface Props {
 
 type Row = Record<string, unknown>
 const C = { blue: '#3b82f6', green: '#22c55e', amber: '#f59e0b', red: '#ef4444', purple: '#a78bfa', slate: '#94a3b8', cyan: '#06b6d4' }
+
+// Per-user (per-browser) Home Dashboard widget visibility — matches every other
+// display preference in this app (theme, groupBy, fullscreen modals: localStorage,
+// not a DB setting), so it's simple and instantly available with no backend change.
+type WidgetKey = 'kpis' | 'statusChart' | 'taskChart' | 'workloadChart' | 'attention' | 'projectsTable' | 'gantt' | 'heatmap'
+const WIDGET_LABELS: Record<WidgetKey, string> = {
+  kpis: 'KPI cards', statusChart: 'Project Status chart', taskChart: 'Task Completion chart',
+  workloadChart: 'Workload chart', attention: 'Attention needed', projectsTable: 'Active Projects list',
+  gantt: 'Timeline (Gantt)', heatmap: 'Team Workload heatmap'
+}
+const WIDGET_KEYS = Object.keys(WIDGET_LABELS) as WidgetKey[]
+const DEFAULT_WIDGETS: Record<WidgetKey, boolean> = Object.fromEntries(WIDGET_KEYS.map((k) => [k, true])) as Record<WidgetKey, boolean>
+const WIDGETS_LS_KEY = 'tos_home_widgets'
+
+function loadWidgetPrefs(): Record<WidgetKey, boolean> {
+  try { return { ...DEFAULT_WIDGETS, ...JSON.parse(localStorage.getItem(WIDGETS_LS_KEY) || '{}') } } catch { return DEFAULT_WIDGETS }
+}
 
 function stage(s: string): 'On-going' | 'On-hold' | 'Completed' {
   if (s === 'Completed' || s === 'Closed') return 'Completed' // 'Closed' is the new "done"
@@ -220,11 +238,21 @@ export default function HomeDashboard({ projects, statusMap, members, canQuote, 
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('pt_onboarded') === '1')
   const dismissOnboard = (): void => { localStorage.setItem('pt_onboarded', '1'); setOnboarded(true) }
 
+  // Which dashboard widgets this user wants to see — persisted per-browser.
+  const [widgets, setWidgets] = useState<Record<WidgetKey, boolean>>(loadWidgetPrefs)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
+  useEscapeKey(() => setCustomizeOpen(false))
+  const toggleWidget = (k: WidgetKey): void => setWidgets((w) => {
+    const next = { ...w, [k]: !w[k] }
+    localStorage.setItem(WIDGETS_LS_KEY, JSON.stringify(next))
+    return next
+  })
+
   return (
     <div className="home-dash">
       {!onboarded && (
         <div className="onboard-hint">
-          <span className="onboard-icon">👋</span>
+          <span className="onboard-icon"><Icon name="sparkles" size={20} /></span>
           <span className="onboard-text">
             Welcome! Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search anything, <kbd>n</kbd> for a new quotation, and open <strong>☰ Workspace</strong> (top-left) for members, allocation &amp; data export. Projects are created by approving a quotation. Click any KPI card to filter.
           </span>
@@ -236,65 +264,94 @@ export default function HomeDashboard({ projects, statusMap, members, canQuote, 
           <h1>Dashboard</h1>
           <p className="home-sub">Overview of all your projects, tasks and team.</p>
         </div>
-        {canQuote && <button className="btn btn-primary" onClick={onQuote}><Icon name="quote" size={16} /> Miscellaneous (quote)</button>}
-      </div>
-
-      <div className="kpi-grid">
-        <Kpi icon="clock" label="Yet to start" value={k.notStarted} sub="approved · not begun" accent={C.cyan} onClick={() => toggle('NotStarted')} active={filter === 'NotStarted'} />
-        <Kpi icon="play" label="On-going" value={k.ongoing} sub="filter" accent={C.green} onClick={() => toggle('On-going')} active={filter === 'On-going'} />
-        <Kpi icon="pause" label="On-hold" value={k.onhold} sub="filter" accent={C.amber} onClick={() => toggle('On-hold')} active={filter === 'On-hold'} />
-        <Kpi icon="checkCircle" label="Completed" value={k.completed} sub="filter" accent={C.purple} onClick={() => toggle('Completed')} active={filter === 'Completed'} />
-        <Kpi icon="folder" label="Total Projects" value={projects.length} sub="click to clear filter" accent={C.blue} onClick={() => setFilter('all')} active={filter === 'all'} />
-      </div>
-
-      <div className="home-charts">
-        <div className="chart-card">
-          <h4>Project Status</h4>
-          <div className="chart-center">
-            <Donut
-              segments={[
-                { label: 'On-going', value: k.ongoing, color: C.green },
-                { label: 'On-hold', value: k.onhold, color: C.amber },
-                { label: 'Completed', value: k.completed, color: C.purple }
-              ]}
-              centerLabel={`${projects.length}`}
-              centerSub="projects"
-            />
+        <div className="home-head-actions">
+          <div className="widget-picker-wrap">
+            <button className="btn btn-secondary" onClick={() => setCustomizeOpen((v) => !v)}><Icon name="grid" size={16} /> Customize</button>
+            {customizeOpen && (
+              <>
+                <div className="widget-picker-backdrop" onClick={() => setCustomizeOpen(false)} />
+                <div className="widget-picker" role="dialog" aria-label="Customize dashboard">
+                  <div className="widget-picker-head">Show on this dashboard</div>
+                  {WIDGET_KEYS.map((wk) => (
+                    <label key={wk} className="widget-picker-row">
+                      <input type="checkbox" checked={widgets[wk]} onChange={() => toggleWidget(wk)} />
+                      {WIDGET_LABELS[wk]}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-          <div className="legend">
-            <span><i style={{ background: C.green }} />On-going {k.ongoing}</span>
-            <span><i style={{ background: C.amber }} />On-hold {k.onhold}</span>
-            <span><i style={{ background: C.purple }} />Completed {k.completed}</span>
-          </div>
-        </div>
-
-        <div className="chart-card">
-          <h4>Task Completion</h4>
-          <div className="chart-center">
-            <Donut
-              segments={[
-                { label: 'Done', value: k.done, color: C.green },
-                { label: 'In Progress', value: k.prog, color: C.amber },
-                { label: 'Not Started', value: k.todo, color: C.slate }
-              ]}
-              centerLabel={`${k.pct}%`}
-              centerSub={`${k.done}/${k.taskTotal} done`}
-            />
-          </div>
-          <div className="legend">
-            <span><i style={{ background: C.green }} />Done {k.done}</span>
-            <span><i style={{ background: C.amber }} />In progress {k.prog}</span>
-            <span><i style={{ background: C.slate }} />Not started {k.todo}</span>
-          </div>
-        </div>
-
-        <div className="chart-card">
-          <h4>Workload · tasks per member</h4>
-          <Bars data={workload} />
+          {canQuote && <button className="btn btn-primary" onClick={onQuote}><Icon name="quote" size={16} /> Miscellaneous (quote)</button>}
         </div>
       </div>
 
-      {attention.length > 0 && (
+      {widgets.kpis && (
+        <div className="kpi-grid">
+          <Kpi icon="clock" label="Yet to start" value={k.notStarted} sub="approved · not begun" accent={C.cyan} onClick={() => toggle('NotStarted')} active={filter === 'NotStarted'} />
+          <Kpi icon="play" label="On-going" value={k.ongoing} sub="filter" accent={C.green} onClick={() => toggle('On-going')} active={filter === 'On-going'} />
+          <Kpi icon="pause" label="On-hold" value={k.onhold} sub="filter" accent={C.amber} onClick={() => toggle('On-hold')} active={filter === 'On-hold'} />
+          <Kpi icon="checkCircle" label="Completed" value={k.completed} sub="filter" accent={C.purple} onClick={() => toggle('Completed')} active={filter === 'Completed'} />
+          <Kpi icon="folder" label="Total Projects" value={projects.length} sub="click to clear filter" accent={C.blue} onClick={() => setFilter('all')} active={filter === 'all'} />
+        </div>
+      )}
+
+      {(widgets.statusChart || widgets.taskChart || widgets.workloadChart) && (
+        <div className="home-charts">
+          {widgets.statusChart && (
+            <div className="chart-card">
+              <h4>Project Status</h4>
+              <div className="chart-center">
+                <Donut
+                  segments={[
+                    { label: 'On-going', value: k.ongoing, color: C.green },
+                    { label: 'On-hold', value: k.onhold, color: C.amber },
+                    { label: 'Completed', value: k.completed, color: C.purple }
+                  ]}
+                  centerLabel={`${projects.length}`}
+                  centerSub="projects"
+                />
+              </div>
+              <div className="legend">
+                <span><i style={{ background: C.green }} />On-going {k.ongoing}</span>
+                <span><i style={{ background: C.amber }} />On-hold {k.onhold}</span>
+                <span><i style={{ background: C.purple }} />Completed {k.completed}</span>
+              </div>
+            </div>
+          )}
+
+          {widgets.taskChart && (
+            <div className="chart-card">
+              <h4>Task Completion</h4>
+              <div className="chart-center">
+                <Donut
+                  segments={[
+                    { label: 'Done', value: k.done, color: C.green },
+                    { label: 'In Progress', value: k.prog, color: C.amber },
+                    { label: 'Not Started', value: k.todo, color: C.slate }
+                  ]}
+                  centerLabel={`${k.pct}%`}
+                  centerSub={`${k.done}/${k.taskTotal} done`}
+                />
+              </div>
+              <div className="legend">
+                <span><i style={{ background: C.green }} />Done {k.done}</span>
+                <span><i style={{ background: C.amber }} />In progress {k.prog}</span>
+                <span><i style={{ background: C.slate }} />Not started {k.todo}</span>
+              </div>
+            </div>
+          )}
+
+          {widgets.workloadChart && (
+            <div className="chart-card">
+              <h4>Workload · tasks per member</h4>
+              <Bars data={workload} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {widgets.attention && attention.length > 0 && (
         <div className="home-panel attention-panel">
           <div className="home-panel-head">
             <h3><Icon name="bellRing" size={16} /> Attention needed <span className="attention-count">{attention.length}</span></h3>
@@ -312,6 +369,7 @@ export default function HomeDashboard({ projects, statusMap, members, canQuote, 
         </div>
       )}
 
+      {widgets.projectsTable && (
       <div className="home-panel">
         <div className="home-panel-head">
           <h3>Active Projects</h3>
@@ -380,10 +438,11 @@ export default function HomeDashboard({ projects, statusMap, members, canQuote, 
           </div>
         )}
       </div>
+      )}
 
-      <GanttTimeline projects={projects} statusMap={statusMap} onSelect={onSelect} />
+      {widgets.gantt && <GanttTimeline projects={projects} statusMap={statusMap} onSelect={onSelect} />}
 
-      {heat.rows.length > 0 && (
+      {widgets.heatmap && heat.rows.length > 0 && (
         <div className="home-panel" style={{ marginTop: 16 }}>
           <div className="home-panel-head">
             <h3>Team Workload · last 14 days</h3>

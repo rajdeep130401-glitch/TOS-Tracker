@@ -97,7 +97,7 @@ export default function MembersModal({ onClose, onToast, onViewDashboard }: Prop
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {leftCount > 0 && (
               <button className="archive-toggle" onClick={() => setShowLeft((v) => !v)}>
-                {showLeft ? '✓ ' : ''}Show departed ({leftCount})
+                {showLeft && <Icon name="checkCircle" size={13} />} Show departed ({leftCount})
               </button>
             )}
             <button className="btn btn-secondary btn-sm" onClick={exportCsv}><Icon name="download" size={14} /> CSV</button>

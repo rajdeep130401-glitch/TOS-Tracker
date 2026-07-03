@@ -11,6 +11,7 @@ import ConfirmDialog from './ConfirmDialog'
 import { useEscapeKey } from '../lib/useEscapeKey'
 
 interface Props {
+  mode: 'data' | 'dashboard'
   projects: Project[]
   onClose: () => void
   onSelect: (id: number) => void
@@ -43,9 +44,10 @@ function Kpi({ icon, label, value, sub, accent }: { icon: IconName; label: strin
 
 // Unified Clients screen: the registry (left rail, with add/edit/delete) IS the
 // navigation for the per-client dashboard (right). Both features in one interface.
-export default function ClientsModal({ projects, onClose, onSelect, onToast }: Props) {
+export default function ClientsModal({ mode, projects, onClose, onSelect, onToast }: Props) {
   useEscapeKey(onClose)
   const { isLead, isAdmin, members } = useApp() // isLead: manage registry; isAdmin: see quoted hrs
+  const canManage = mode === 'data' && isLead
   const { tasksByProject, timesheetsByProject, memberIdsForProject, statusMap } = useData()
   const [clients, setClients] = useState<Client[]>([])
   const [openByProject, setOpenByProject] = useState<Record<number, number>>({})
@@ -217,7 +219,7 @@ export default function ClientsModal({ projects, onClose, onSelect, onToast }: P
     <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ width: 1060, maxWidth: '96vw' }}>
         <div className="modal-header">
-          <h3><Icon name="building" size={18} /> Clients &amp; dashboard</h3>
+          <h3><Icon name="building" size={18} /> {mode === 'data' ? 'Client Data' : 'Client Dashboard'}</h3>
           <button className="btn-icon" onClick={onClose}><Icon name="close" size={18} /></button>
         </div>
         <div className="modal-body">
@@ -225,7 +227,7 @@ export default function ClientsModal({ projects, onClose, onSelect, onToast }: P
             <div className="client-list">
               <div className="staff-col-head">
                 <span>Clients ({groups.length})</span>
-                {isLead && <button className="btn-icon" title="New client" onClick={() => setEditing({ name: '', company: '' })}><Icon name="plus" size={16} /></button>}
+                {canManage && <button className="btn-icon" title="New client" onClick={() => setEditing({ name: '', company: '' })}><Icon name="plus" size={16} /></button>}
               </div>
               <div className="filter-search" style={{ margin: '4px 0 8px' }}>
                 <Icon name="search" size={14} />
@@ -259,7 +261,7 @@ export default function ClientsModal({ projects, onClose, onSelect, onToast }: P
               )}
 
               {!sel ? (
-                <div className="attach-empty">No clients yet.{isLead ? ' Use “New client” to add one.' : ''}</div>
+                <div className="attach-empty">No clients yet.{canManage ? ' Use “New client” to add one.' : ''}</div>
               ) : (
                 <>
                   <div className="client-detail-head">
@@ -268,7 +270,7 @@ export default function ClientsModal({ projects, onClose, onSelect, onToast }: P
                       {sel.client?.company && <div className="attach-hint" style={{ margin: '2px 0 0' }}>{sel.client.company}</div>}
                       {!sel.client && sel.name !== 'No client' && <div className="attach-hint" style={{ margin: '2px 0 0' }}>Not in the registry yet</div>}
                     </div>
-                    {isLead && (
+                    {canManage && (
                       <div style={{ display: 'flex', gap: 6 }}>
                         {sel.client ? (
                           <>
@@ -282,52 +284,56 @@ export default function ClientsModal({ projects, onClose, onSelect, onToast }: P
                     )}
                   </div>
 
-                  <div className="ct-download" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', marginBottom: 12 }}>
-                    <div className="ct-download-head"><Icon name="download" size={15} /> Download {sel.name === 'No client' ? 'timesheet' : `${sel.name}’s timesheet`}</div>
-                    <p className="attach-hint" style={{ margin: '2px 0 8px' }}>All timesheet entries across {sel.name === 'No client' ? 'these' : `${sel.name}’s`} projects within the date range (leave a date blank for no limit).</p>
-                    <div className="ct-download-row">
-                      <div className="field"><label>From</label><input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
-                      <div className="field"><label>To</label><input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
-                      <button className="btn btn-secondary" onClick={downloadTimesheet} disabled={downloading || rows.length === 0}>
-                        <Icon name="download" size={15} /> {downloading ? 'Preparing…' : 'Download Excel'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="kpi-grid">
-                    <Kpi icon="folder" label="Projects" value={k.count} sub={`${k.ongoing} on-going · ${k.completed} done`} accent={C.blue} />
-                    <Kpi icon="bellRing" label="At-risk" value={k.atRisk} sub={`${k.watch} watch`} accent={k.atRisk ? C.red : C.green} />
-                    <Kpi icon="checkSquare" label="Tasks" value={`${k.taskDone}/${k.taskTotal}`} sub={`${k.taskPct}% complete`} accent={C.purple} />
-                    <Kpi icon="clock" label={isAdmin ? 'Productive Hrs' : 'Hrs Used'} value={k.logged} sub={isAdmin && k.quoted ? `of ${k.quoted} quoted · ${k.util}%` : 'logged'} accent={C.amber} />
-                  </div>
-
-                  {k.count > 0 && (
-                    <div className="home-charts" style={{ marginTop: 4 }}>
-                      <div className="chart-card">
-                        <h4>Project Status</h4>
-                        <div className="chart-center">
-                          <Donut segments={[
-                            { label: 'On-going', value: k.ongoing, color: C.green },
-                            { label: 'On-hold', value: k.onhold, color: C.amber },
-                            { label: 'Completed', value: k.completed, color: C.purple }
-                          ]} centerLabel={`${k.count}`} centerSub="projects" />
-                        </div>
-                        <div className="legend">
-                          <span><i style={{ background: C.green }} />On-going {k.ongoing}</span>
-                          <span><i style={{ background: C.amber }} />On-hold {k.onhold}</span>
-                          <span><i style={{ background: C.purple }} />Completed {k.completed}</span>
+                  {mode === 'dashboard' && (
+                    <>
+                      <div className="ct-download" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', marginBottom: 12 }}>
+                        <div className="ct-download-head"><Icon name="download" size={15} /> Download {sel.name === 'No client' ? 'timesheet' : `${sel.name}’s timesheet`}</div>
+                        <p className="attach-hint" style={{ margin: '2px 0 8px' }}>All timesheet entries across {sel.name === 'No client' ? 'these' : `${sel.name}’s`} projects within the date range (leave a date blank for no limit).</p>
+                        <div className="ct-download-row">
+                          <div className="field"><label>From</label><input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
+                          <div className="field"><label>To</label><input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
+                          <button className="btn btn-secondary" onClick={downloadTimesheet} disabled={downloading || rows.length === 0}>
+                            <Icon name="download" size={15} /> {downloading ? 'Preparing…' : 'Download Excel'}
+                          </button>
                         </div>
                       </div>
-                      <div className="chart-card">
-                        <h4>Task Completion</h4>
-                        <div className="chart-center">
-                          <Donut segments={[
-                            { label: 'Done', value: k.taskDone, color: C.green },
-                            { label: 'Remaining', value: Math.max(k.taskTotal - k.taskDone, 0), color: C.slate }
-                          ]} centerLabel={`${k.taskPct}%`} centerSub={`${k.taskDone}/${k.taskTotal}`} />
-                        </div>
+
+                      <div className="kpi-grid">
+                        <Kpi icon="folder" label="Projects" value={k.count} sub={`${k.ongoing} on-going · ${k.completed} done`} accent={C.blue} />
+                        <Kpi icon="bellRing" label="At-risk" value={k.atRisk} sub={`${k.watch} watch`} accent={k.atRisk ? C.red : C.green} />
+                        <Kpi icon="checkSquare" label="Tasks" value={`${k.taskDone}/${k.taskTotal}`} sub={`${k.taskPct}% complete`} accent={C.purple} />
+                        <Kpi icon="clock" label={isAdmin ? 'Productive Hrs' : 'Hrs Used'} value={k.logged} sub={isAdmin && k.quoted ? `of ${k.quoted} quoted · ${k.util}%` : 'logged'} accent={C.amber} />
                       </div>
-                    </div>
+
+                      {k.count > 0 && (
+                        <div className="home-charts" style={{ marginTop: 4 }}>
+                          <div className="chart-card">
+                            <h4>Project Status</h4>
+                            <div className="chart-center">
+                              <Donut segments={[
+                                { label: 'On-going', value: k.ongoing, color: C.green },
+                                { label: 'On-hold', value: k.onhold, color: C.amber },
+                                { label: 'Completed', value: k.completed, color: C.purple }
+                              ]} centerLabel={`${k.count}`} centerSub="projects" />
+                            </div>
+                            <div className="legend">
+                              <span><i style={{ background: C.green }} />On-going {k.ongoing}</span>
+                              <span><i style={{ background: C.amber }} />On-hold {k.onhold}</span>
+                              <span><i style={{ background: C.purple }} />Completed {k.completed}</span>
+                            </div>
+                          </div>
+                          <div className="chart-card">
+                            <h4>Task Completion</h4>
+                            <div className="chart-center">
+                              <Donut segments={[
+                                { label: 'Done', value: k.taskDone, color: C.green },
+                                { label: 'Remaining', value: Math.max(k.taskTotal - k.taskDone, 0), color: C.slate }
+                              ]} centerLabel={`${k.taskPct}%`} centerSub={`${k.taskDone}/${k.taskTotal}`} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <div className="home-panel" style={{ marginTop: 12 }}>
@@ -375,7 +381,7 @@ export default function ClientsModal({ projects, onClose, onSelect, onToast }: P
           </div>
         </div>
         <div className="modal-footer">
-          {!isLead && <span className="attach-hint" style={{ marginRight: 'auto' }}>Only Team Leads and above can add or edit clients.</span>}
+          {mode === 'data' && !isLead && <span className="attach-hint" style={{ marginRight: 'auto' }}>Only Team Leads and above can add or edit clients.</span>}
           <button className="btn btn-secondary" onClick={onClose}>Close</button>
         </div>
       </div>
